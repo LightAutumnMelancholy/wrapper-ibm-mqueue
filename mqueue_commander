@@ -1,0 +1,113 @@
+#!/bin/bash
+#Options Logic
+while getopts "cdH" opt; do
+  case $opt in
+    c)
+      echo "Let's check out that depth:" >&2
+      var1=0
+      ;;
+    d)
+          echo "Let's attempt to dump it to file and move that file to an linux host so that you can retrieve and attach it." >&2
+      var1=1
+      ;;
+        H)
+          echo " mq_handler version 0.1 " >&2
+          echo "was written by Jonathan W. Windham Jan. 2014  " >&2
+		  echo "CAVEATS you will see a bad return on a cp if a queue is empty." >&2
+      exit 1
+      ;;
+    \?)
+      echo "Invalid option, type mq_handler -H for help." >&2
+      exit 1
+      ;;
+  esac
+#####
+filep=/home/yourname/public/MQ_profiles/
+cd $filep
+clear
+echo -e '\E[47;32m'"\033[1m####################################### IBM MQUEUE COMMANDER ###############################################################\033[0m"
+ls $filep
+function QUEUEDEPTHWRAPPERCHECK {
+        echo -e '\E[37;44m'"\033[1mSelect a profile using it's name or select n to create a new profile.\033[0m"
+        read dat_choice
+        if [ $dat_choice = 'n' ]
+            then
+                echo "Enter the hostname with its FQDN."
+                read FQDN_ENT
+                echo "What is the the Queue name?"
+                read QNAME
+                echo "Enter the Queue Manager name."
+                read QMAN
+                echo "Is the following information correct?"
+        echo "The hostname is $FQDN_ENT the Queue name is $QNAME and the Queue Manager is $QMAN ? Enter 'y' or 'n'."
+        read R1
+        if [ $R1 = 'y' ]
+            then
+                touch ${filep}${FQDN_ENT}_${QNAME}_${QMAN}
+                    for i in $FQDN_ENT $QNAME $QMAN;
+                    do echo "$i" >> ${filep}${FQDN_ENT}_${QNAME}_${QMAN};
+            done
+                else
+                    echo "Better luck next time"
+                        exit 1
+        fi
+        else
+            echo "Reading profile..."
+                FQDN_EXT=`awk 'NR==1' $dat_choice`
+                QNAME=`awk 'NR==2' $dat_choice`
+                QMAN=`awk 'NR==3' $dat_choice`
+            for i in $FQDN_EXT; do ssh -n $i -l root "date;su - mqm -c \"echo 'dis queue($QNAME) CURDEPTH' | runmqsc $QMAN \"";done
+    fi
+}
+
+
+function DROPQUEUETOFILE {
+        echo -e '\E[37;44m'"\033[1mSelect a profile using it's name or select n to create a new profile.\033[0m"
+        read dat_choice
+        if [ $dat_choice = n ]
+            then
+                echo "Enter the hostname with its FQDN."
+                read FQDN_ENT
+                echo "What is the the Queue name?"
+                read QNAME
+                echo "Enter the Queue Manager name."
+                read QMAN
+                echo "Is the following information correct?"
+        echo "The hostname is $FQDN_ENT the Queue name is $QNAME and the Queue Manager is $QMAN ? Enter 'y' or 'n'."
+        read R1
+        if [ $R1 = y ]
+            then
+                touch ${filep}${FQDN_ENT}_${QNAME}_${QMAN}
+                for i in $FQDN_ENT $QNAME $QMAN;
+                do echo "$i" >> ${filep}${FQDN_ENT}_${QNAME}_${QMAN};
+            done
+                else
+                    echo "Better luck next time"
+                        exit 1
+        fi
+        else
+            echo "Please enter the case number Now:"
+                read casenum
+                FQDN_EXT=`awk 'NR==1' $dat_choice`
+                QNAME=`awk 'NR==2' $dat_choice`
+                QMAN=`awk 'NR==3' $dat_choice`
+                COPYKA=`awk 'NR==1' $dat_choice`
+                echo "$COPYKA" > ~/tempmmqc.tmp
+for i in $FQDN_EXT; do ssh -l root -n $i "date;su - mqm -c \" /export/home/mqm/bin/qload -m$QMAN -I$QNAME -f/tmp/$casenum.$QNAME\";su - mqm -c \"echo 'dis queue($QNAME) CURDEPTH' | runmqsc $QMAN\"";done
+                tempmmqcv=`cat ~/tempmmqc.tmp`
+                filop=`echo "/opsw/Server/@/"$tempmmqcv"/files/root/tmp/"$casenum"."$QNAME"" ~/`
+                cp $filop
+                echo "$COPYKA"
+               # rm .~/tempmmqc.tmp
+        fi
+}
+#options logic
+
+if [[ $opt == *c* ]]; then
+    QUEUEDEPTHWRAPPERCHECK
+elif [[ $opt == *d* ]]; then
+    DROPQUEUETOFILE
+else
+    exit 1
+fi
+done
